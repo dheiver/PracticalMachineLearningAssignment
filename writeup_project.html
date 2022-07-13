@@ -1,0 +1,370 @@
+<html>
+
+<head>
+<style type="text/css">
+.knitr .inline {
+  background-color: #f7f7f7;
+  border:solid 1px #B0B0B0;
+}
+.error {
+	font-weight: bold;
+	color: #FF0000;
+}
+.warning {
+	font-weight: bold;
+}
+.message {
+	font-style: italic;
+}
+.source, .output, .warning, .error, .message {
+	padding: 0 1em;
+  border:solid 1px #F7F7F7;
+}
+.source {
+  background-color: #f5f5f5;
+}
+.rimage .left {
+  text-align: left;
+}
+.rimage .right {
+  text-align: right;
+}
+.rimage .center {
+  text-align: center;
+}
+.hl.num {
+  color: #AF0F91;
+}
+.hl.str {
+  color: #317ECC;
+}
+.hl.com {
+  color: #AD95AF;
+  font-style: italic;
+}
+.hl.opt {
+  color: #000000;
+}
+.hl.std {
+  color: #585858;
+}
+.hl.kwa {
+  color: #295F94;
+  font-weight: bold;
+}
+.hl.kwb {
+  color: #B05A65;
+}
+.hl.kwc {
+  color: #55aa55;
+}
+.hl.kwd {
+  color: #BC5A65;
+  font-weight: bold;
+}
+</style>
+<title>Prediction Assignment Writeup</title>
+</head>
+
+<body>
+
+<h1> Prediction Assignment Writeup </h1>
+<h2> <i> Alaettin Serhan Mete </i> </h2>
+<h3> <i> Apr. 2017 </i> </h3>
+
+<section>
+<h1> Overview </h1>
+<p>This document summarizes the work done for the <i>Prediction Assignment Writeup</i> project for the <i>Coursera</i> <i>Practical Machine Learning</i> course. It's created using the functionalities of the <i>knitr</i> package in <i>RStudio</i> using the actual analysis code. The repository for this work can be found at <a href="https://github.com/amete/PracticalMachineLearningAssignment">https://github.com/amete/PracticalMachineLearningAssignment</a>. </p>
+</section>
+
+<section>
+<h1> Background </h1>
+<p>Using devices such as <i>Jawbone Up</i>, <i>Nike FuelBand</i>, and <i>Fitbit</i> it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify <i>how well they do it</i>. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <a href="http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har</a> (see the section on the Weight Lifting Exercise Dataset).</p>
+</section>
+
+<section>
+<h1> Data </h1>
+<p>The training data for this project are available here:</p>
+
+<p><a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv">https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv</a></p>
+
+<p>The test data are available here:</p>
+
+<p><a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv">https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv</a></p>
+</section>
+
+<section>
+<h1> Analysis </h1>
+
+<p>First, we begin by exporting the data. One can simply download the training and testing datasets using:</p>
+
+<div class="chunk" id="unnamed-chunk-1"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Download the training and testing datasets</span>
+<span class="hl kwd">download.file</span><span class="hl std">(</span><span class="hl str">&quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;</span><span class="hl std">,</span><span class="hl str">&quot;training.csv&quot;</span><span class="hl std">,</span><span class="hl kwc">method</span> <span class="hl std">=</span> <span class="hl str">&quot;curl&quot;</span><span class="hl std">)</span>
+<span class="hl kwd">download.file</span><span class="hl std">(</span><span class="hl str">&quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;</span><span class="hl std">,</span><span class="hl str">&quot;testing.csv&quot;</span><span class="hl std">,</span><span class="hl kwc">method</span> <span class="hl std">=</span> <span class="hl str">&quot;curl&quot;</span><span class="hl std">)</span>
+</pre></div>
+</div></div>
+
+<p>Then, we load some useful packages using:</p>
+
+<div class="chunk" id="unnamed-chunk-2"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Require the necessary packages</span>
+<span class="hl kwd">require</span><span class="hl std">(data.table)</span>
+<span class="hl kwd">require</span><span class="hl std">(dplyr)</span>
+<span class="hl kwd">require</span><span class="hl std">(caret)</span>
+</pre></div>
+</div></div>
+
+<p>Now let's load the data into memory:</p>
+
+<div class="chunk" id="unnamed-chunk-3"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Load the training and testing datasets</span>
+<span class="hl std">training</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">tbl_df</span><span class="hl std">(</span><span class="hl kwd">fread</span><span class="hl std">(</span><span class="hl str">&quot;training.csv&quot;</span><span class="hl std">,</span><span class="hl kwc">na.strings</span><span class="hl std">=</span><span class="hl kwd">c</span><span class="hl std">(</span><span class="hl str">'#DIV/0!'</span><span class="hl std">,</span> <span class="hl str">''</span><span class="hl std">,</span> <span class="hl str">'NA'</span><span class="hl std">)))</span>
+<span class="hl std">testing</span>  <span class="hl kwb">&lt;-</span> <span class="hl kwd">tbl_df</span><span class="hl std">(</span><span class="hl kwd">fread</span><span class="hl std">(</span><span class="hl str">&quot;testing.csv&quot;</span><span class="hl std">,</span><span class="hl kwc">na.strings</span><span class="hl std">=</span><span class="hl kwd">c</span><span class="hl std">(</span><span class="hl str">'#DIV/0!'</span><span class="hl std">,</span> <span class="hl str">''</span><span class="hl std">,</span> <span class="hl str">'NA'</span><span class="hl std">)))</span>
+</pre></div>
+</div></div>
+
+<p>Now that we have the data in the memory, let's get to the fun part. First thing we better do is to split the training data into two parts. We'll use 70% of this data to actually train our model and the remaining 30% to validate it:</p>
+
+<div class="chunk" id="unnamed-chunk-4"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Now split the training into to as actual testing and validation</span>
+<span class="hl kwd">set.seed</span><span class="hl std">(</span><span class="hl num">1234</span><span class="hl std">)</span> <span class="hl com"># Don't forget the reproducibility!</span>
+<span class="hl std">trainingDS</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">createDataPartition</span><span class="hl std">(</span> <span class="hl kwc">y</span> <span class="hl std">= training</span><span class="hl opt">$</span><span class="hl std">classe,</span>
+                                   <span class="hl kwc">p</span> <span class="hl std">=</span> <span class="hl num">0.7</span><span class="hl std">,</span>
+                                   <span class="hl kwc">list</span> <span class="hl std">=</span> <span class="hl num">FALSE</span><span class="hl std">)</span>
+<span class="hl std">actual.training</span> <span class="hl kwb">&lt;-</span> <span class="hl std">training[trainingDS,]</span>
+<span class="hl std">actual.validation</span> <span class="hl kwb">&lt;-</span> <span class="hl std">training[</span><span class="hl opt">-</span><span class="hl std">trainingDS,]</span>
+</pre></div>
+</div></div>
+
+<p>Next, we need to prepare the data for modeling. If you look at the training data you'll see that there are a number of variables that have either no variance or a large fraction of missing values. These will not really help us in any meaningful way. Therefore, let's clean them up for a healthy modeling:</p>
+
+<div class="chunk" id="unnamed-chunk-5"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Now clean-up the variables w/ zero variance</span>
+<span class="hl com"># Be careful, kick out the same variables in both cases</span>
+<span class="hl std">nzv</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">nearZeroVar</span><span class="hl std">(actual.training)</span>
+<span class="hl std">actual.training</span> <span class="hl kwb">&lt;-</span> <span class="hl std">actual.training[,</span><span class="hl opt">-</span><span class="hl std">nzv]</span>
+<span class="hl std">actual.validation</span> <span class="hl kwb">&lt;-</span> <span class="hl std">actual.validation[,</span><span class="hl opt">-</span><span class="hl std">nzv]</span>
+
+<span class="hl com"># Remove variables that are mostly NA</span>
+<span class="hl std">mostlyNA</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">sapply</span><span class="hl std">(actual.training,</span><span class="hl kwa">function</span><span class="hl std">(</span><span class="hl kwc">x</span><span class="hl std">)</span> <span class="hl kwd">mean</span><span class="hl std">(</span><span class="hl kwd">is.na</span><span class="hl std">(x)))</span> <span class="hl opt">&gt;</span> <span class="hl num">0.95</span>
+<span class="hl std">actual.training</span> <span class="hl kwb">&lt;-</span> <span class="hl std">actual.training[,mostlyNA</span><span class="hl opt">==</span><span class="hl num">FALSE</span><span class="hl std">]</span>
+<span class="hl std">actual.validation</span> <span class="hl kwb">&lt;-</span> <span class="hl std">actual.validation[,mostlyNA</span><span class="hl opt">==</span><span class="hl num">FALSE</span><span class="hl std">]</span>
+
+<span class="hl com"># At this point we're already down to 59 variables from 160</span>
+<span class="hl com"># See that the first 5 variables are identifiers that are</span>
+<span class="hl com"># not probably useful for prediction so get rid of those</span>
+<span class="hl com"># Dropping the total number of variables to 54 (53 for prediction)</span>
+<span class="hl std">actual.training</span> <span class="hl kwb">&lt;-</span> <span class="hl std">actual.training[,</span><span class="hl opt">-</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl opt">:</span><span class="hl num">5</span><span class="hl std">)]</span>
+<span class="hl std">actual.validation</span> <span class="hl kwb">&lt;-</span> <span class="hl std">actual.validation[,</span><span class="hl opt">-</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl opt">:</span><span class="hl num">5</span><span class="hl std">)]</span>
+</pre></div>
+</div></div>
+
+<p>At this point, we have healthy clean data that we can use for building models. We'll build two models: a <i>random forest</i> and a <i>generalized boosted model</i>. We'll train these in the training portion of the original training dataset and then test them in the validation portion of the original training dataset: </p>
+
+<div class="chunk" id="unnamed-chunk-6"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Now let's build a random forest model</span>
+<span class="hl kwd">set.seed</span><span class="hl std">(</span><span class="hl num">1234</span><span class="hl std">)</span>
+<span class="hl std">modelRF</span>  <span class="hl kwb">&lt;-</span> <span class="hl kwd">train</span><span class="hl std">( classe</span> <span class="hl opt">~</span><span class="hl std">.,</span>
+                   <span class="hl kwc">data</span> <span class="hl std">= actual.training,</span>
+                   <span class="hl kwc">method</span> <span class="hl std">=</span> <span class="hl str">&quot;rf&quot;</span><span class="hl std">,</span>
+                   <span class="hl kwc">trControl</span> <span class="hl std">=</span> <span class="hl kwd">trainControl</span><span class="hl std">(</span><span class="hl kwc">method</span><span class="hl std">=</span><span class="hl str">&quot;cv&quot;</span><span class="hl std">,</span><span class="hl kwc">number</span><span class="hl std">=</span><span class="hl num">3</span><span class="hl std">) )</span>
+</pre></div>
+</div></div>
+
+<div class="chunk" id="unnamed-chunk-7"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># One can also build a generalized boosted model and compare its accuracy</span>
+<span class="hl com"># to random forest model</span>
+<span class="hl kwd">set.seed</span><span class="hl std">(</span><span class="hl num">1234</span><span class="hl std">)</span>
+<span class="hl std">modelBM</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">train</span><span class="hl std">( classe</span> <span class="hl opt">~</span><span class="hl std">.,</span>
+                  <span class="hl kwc">data</span> <span class="hl std">= actual.training,</span>
+                  <span class="hl kwc">method</span> <span class="hl std">=</span> <span class="hl str">&quot;gbm&quot;</span><span class="hl std">,</span>
+                  <span class="hl kwc">trControl</span> <span class="hl std">=</span> <span class="hl kwd">trainControl</span><span class="hl std">(</span><span class="hl kwc">method</span><span class="hl std">=</span><span class="hl str">&quot;repeatedcv&quot;</span><span class="hl std">,</span><span class="hl kwc">number</span> <span class="hl std">=</span> <span class="hl num">5</span><span class="hl std">,</span><span class="hl kwc">repeats</span> <span class="hl std">=</span> <span class="hl num">1</span><span class="hl std">),</span>
+                  <span class="hl kwc">verbose</span> <span class="hl std">=</span> <span class="hl num">FALSE</span><span class="hl std">)</span>
+</pre></div>
+</div></div>
+
+<p>Then let's see how well these two models perform predicting the values in the validation dataset. This can be easily accomplished by predicting the values in the validation set, and then comparing the predictions with the actual values.</p>
+
+<div class="chunk" id="unnamed-chunk-8"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Now get the prediction in the validation portion and see how well we do</span>
+<span class="hl std">prediction.validation.rf</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">predict</span><span class="hl std">(modelRF,actual.validation)</span>
+<span class="hl std">conf.matrix.rf</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">confusionMatrix</span><span class="hl std">(prediction.validation.rf,actual.validation</span><span class="hl opt">$</span><span class="hl std">classe)</span>
+<span class="hl kwd">print</span><span class="hl std">(conf.matrix.rf)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1674    4    0    0    0
+##          B    0 1134    4    0    0
+##          C    0    1 1022    1    0
+##          D    0    0    0  963    2
+##          E    0    0    0    0 1080
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.998           
+##                  95% CI : (0.9964, 0.9989)
+##     No Information Rate : 0.2845          
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.9974          
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            1.0000   0.9956   0.9961   0.9990   0.9982
+## Specificity            0.9991   0.9992   0.9996   0.9996   1.0000
+## Pos Pred Value         0.9976   0.9965   0.9980   0.9979   1.0000
+## Neg Pred Value         1.0000   0.9989   0.9992   0.9998   0.9996
+## Prevalence             0.2845   0.1935   0.1743   0.1638   0.1839
+## Detection Rate         0.2845   0.1927   0.1737   0.1636   0.1835
+## Detection Prevalence   0.2851   0.1934   0.1740   0.1640   0.1835
+## Balanced Accuracy      0.9995   0.9974   0.9978   0.9993   0.9991
+</pre></div>
+</div></div>
+
+
+<div class="chunk" id="unnamed-chunk-9"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Now get the prediction in the validation portion and see how well we do</span>
+<span class="hl std">prediction.validation.bm</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">predict</span><span class="hl std">(modelBM,actual.validation)</span>
+<span class="hl std">conf.matrix.bm</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">confusionMatrix</span><span class="hl std">(prediction.validation.bm,actual.validation</span><span class="hl opt">$</span><span class="hl std">classe)</span>
+<span class="hl kwd">print</span><span class="hl std">(conf.matrix.bm)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1673   14    0    0    0
+##          B    1 1107    9    7    1
+##          C    0   15 1017   11    3
+##          D    0    3    0  946    9
+##          E    0    0    0    0 1069
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9876          
+##                  95% CI : (0.9844, 0.9903)
+##     No Information Rate : 0.2845          
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.9843          
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9994   0.9719   0.9912   0.9813   0.9880
+## Specificity            0.9967   0.9962   0.9940   0.9976   1.0000
+## Pos Pred Value         0.9917   0.9840   0.9723   0.9875   1.0000
+## Neg Pred Value         0.9998   0.9933   0.9981   0.9963   0.9973
+## Prevalence             0.2845   0.1935   0.1743   0.1638   0.1839
+## Detection Rate         0.2843   0.1881   0.1728   0.1607   0.1816
+## Detection Prevalence   0.2867   0.1912   0.1777   0.1628   0.1816
+## Balanced Accuracy      0.9980   0.9841   0.9926   0.9894   0.9940
+</pre></div>
+</div></div>
+
+<p>We can investigate our <i>generalized boosted model</i> a bit further to see which variables have the highest relative influence:</p>
+
+<div class="chunk" id="unnamed-chunk-10"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Print the summary of our GBM</span>
+<span class="hl kwd">print</span><span class="hl std">(</span><span class="hl kwd">summary</span><span class="hl std">(modelBM))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-10-1.png" title="plot of chunk unnamed-chunk-10" alt="plot of chunk unnamed-chunk-10" class="plot" /></div><div class="rcode">
+<div class="output"><pre class="knitr r">##                                       var     rel.inf
+## num_window                     num_window 21.35545512
+## roll_belt                       roll_belt 18.27724938
+## pitch_forearm               pitch_forearm 10.13583112
+## magnet_dumbbell_z       magnet_dumbbell_z  6.72541291
+## yaw_belt                         yaw_belt  6.51200291
+## magnet_dumbbell_y       magnet_dumbbell_y  5.05649194
+## roll_forearm                 roll_forearm  3.49549946
+## accel_forearm_x           accel_forearm_x  2.61845321
+## magnet_belt_z               magnet_belt_z  2.53921239
+## pitch_belt                     pitch_belt  2.51716927
+## gyros_belt_z                 gyros_belt_z  1.82833065
+## gyros_dumbbell_y         gyros_dumbbell_y  1.79600229
+## accel_dumbbell_z         accel_dumbbell_z  1.78978003
+## roll_dumbbell               roll_dumbbell  1.71291149
+## accel_dumbbell_y         accel_dumbbell_y  1.51172485
+## yaw_arm                           yaw_arm  1.16790745
+## magnet_forearm_z         magnet_forearm_z  1.13838373
+## accel_forearm_z           accel_forearm_z  1.11085165
+## accel_dumbbell_x         accel_dumbbell_x  1.07112326
+## magnet_belt_y               magnet_belt_y  0.73220505
+## roll_arm                         roll_arm  0.69769807
+## magnet_arm_z                 magnet_arm_z  0.66713578
+## gyros_arm_y                   gyros_arm_y  0.59235410
+## magnet_belt_x               magnet_belt_x  0.56962809
+## accel_belt_z                 accel_belt_z  0.56689770
+## gyros_belt_y                 gyros_belt_y  0.52256127
+## magnet_arm_x                 magnet_arm_x  0.46724034
+## magnet_dumbbell_x       magnet_dumbbell_x  0.43441017
+## total_accel_dumbbell total_accel_dumbbell  0.39610082
+## magnet_forearm_x         magnet_forearm_x  0.28197085
+## total_accel_forearm   total_accel_forearm  0.27783955
+## gyros_dumbbell_x         gyros_dumbbell_x  0.25152542
+## magnet_arm_y                 magnet_arm_y  0.22235172
+## pitch_dumbbell             pitch_dumbbell  0.19453168
+## accel_arm_z                   accel_arm_z  0.17252396
+## accel_forearm_y           accel_forearm_y  0.16660947
+## gyros_belt_x                 gyros_belt_x  0.14726266
+## total_accel_arm           total_accel_arm  0.09844732
+## gyros_forearm_z           gyros_forearm_z  0.09281553
+## gyros_dumbbell_z         gyros_dumbbell_z  0.04731855
+## magnet_forearm_y         magnet_forearm_y  0.04077878
+## total_accel_belt         total_accel_belt  0.00000000
+## accel_belt_x                 accel_belt_x  0.00000000
+## accel_belt_y                 accel_belt_y  0.00000000
+## pitch_arm                       pitch_arm  0.00000000
+## gyros_arm_x                   gyros_arm_x  0.00000000
+## gyros_arm_z                   gyros_arm_z  0.00000000
+## accel_arm_x                   accel_arm_x  0.00000000
+## accel_arm_y                   accel_arm_y  0.00000000
+## yaw_dumbbell                 yaw_dumbbell  0.00000000
+## yaw_forearm                   yaw_forearm  0.00000000
+## gyros_forearm_x           gyros_forearm_x  0.00000000
+## gyros_forearm_y           gyros_forearm_y  0.00000000
+</pre></div>
+</div></div>
+
+<p>The above list shows the ranking of variables in our GBM. We see that <i>num_window</i>, <i>roll_belt</i>, and <i>pitch_forearm</i> are the most performant ones. We can checkout a few plots demonstrating their power:</p>
+
+<div class="chunk" id="unnamed-chunk-11"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">qplot</span><span class="hl std">(num_window, roll_belt    ,</span> <span class="hl kwc">data</span> <span class="hl std">= actual.training,</span> <span class="hl kwc">col</span> <span class="hl std">= classe)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-11-1.png" title="plot of chunk unnamed-chunk-11" alt="plot of chunk unnamed-chunk-11" class="plot" /></div></div>
+
+<div class="chunk" id="unnamed-chunk-12"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">qplot</span><span class="hl std">(num_window, pitch_forearm,</span> <span class="hl kwc">data</span> <span class="hl std">= actual.training,</span> <span class="hl kwc">col</span> <span class="hl std">= classe)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-12-1.png" title="plot of chunk unnamed-chunk-12" alt="plot of chunk unnamed-chunk-12" class="plot" /></div></div>
+
+<div class="chunk" id="unnamed-chunk-13"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">qplot</span><span class="hl std">(roll_belt , pitch_forearm,</span> <span class="hl kwc">data</span> <span class="hl std">= actual.training,</span> <span class="hl kwc">col</span> <span class="hl std">= classe)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-13-1.png" title="plot of chunk unnamed-chunk-13" alt="plot of chunk unnamed-chunk-13" class="plot" /></div></div>
+
+<p>At this point we see the <i>random forest</i> has marginally better performance (Accuracy : 0.998) than the <i>generalized boosted model</i> (Accuracy : 0.9876). Actually we can go w/ either or ensemble them but that might be an overkill at this point. In any case they yield the same result. Let's test our model in the actual testing dataset:</p>
+
+<div class="chunk" id="unnamed-chunk-14"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Now get the prediction in the testing portion and see what we get</span>
+<span class="hl std">prediction.testing.rf</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">predict</span><span class="hl std">(modelRF,testing)</span>
+<span class="hl kwd">print</span><span class="hl std">(prediction.testing.rf)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##  [1] B A B A A E D B A A B C B A E E A B B B
+## Levels: A B C D E
+</pre></div>
+</div></div>
+
+</section>
+
+<h3> On the expected out of sample error </h3>
+<p> Please note that since the method <i>random forest</i> is chosen, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error. This is explained as:
+<br>
+<br>
+"In random forests, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error. It is estimated internally, during the run, as follows:
+<br>
+<br>
+Each tree is constructed using a different bootstrap sample from the original data. About one-third of the cases are left out of the bootstrap sample and not used in the construction of the kth tree.
+<br>
+<br>
+Put each case left out in the construction of the kth tree down the kth tree to get a classification. In this way, a test set classification is obtained for each case in about one-third of the trees. At the end of the run, take j to be the class that got most of the votes every time case n was oob. The proportion of times that j is not equal to the true class of n averaged over all cases is the oob error estimate. This has proven to be unbiased in many tests."
+<br>
+<br>
+The reader can find more information at: <a href="https://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr">https://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr</a> 
+ </p>
+
+<b>Copyright &#9400; Alaettin Serhan Mete, 2017. All rights reserved.</b>
+
+</body>
+</html>
